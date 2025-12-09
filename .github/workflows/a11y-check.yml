@@ -1,0 +1,52 @@
+name: Accessibility Check
+
+on:
+  push:
+    paths:
+      - '**/*.ipynb'
+  pull_request:
+    paths:
+      - '**/*.ipynb'
+
+jobs:
+  a11y-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current repo
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Checkout A11y Checker CLI
+        uses: actions/checkout@v3
+        with:
+          repository: berkeley-dsep-infra/jupyterlab-a11y-checker
+          ref: refactor
+          path: a11y-checker
+
+      - name: Build CLI from source
+        working-directory: ./a11y-checker
+        run: |
+          npm install
+          npm run build -w packages/core
+          npm run build -w packages/cli
+
+      - name: Run accessibility check
+        run: |
+          set -euo pipefail
+          NOTEBOOKS=()
+          while IFS= read -r -d '' file; do
+            NOTEBOOKS+=("$file")
+          done < <(git ls-files '*.ipynb' -z)
+
+          if [ "${#NOTEBOOKS[@]}" -eq 0 ]; then
+            echo "No notebooks tracked in this repo."
+            exit 0
+          fi
+
+          echo "Running accessibility checks on ${#NOTEBOOKS[@]} notebooks."
+          node ./a11y-checker/packages/cli/dist/index.js "${NOTEBOOKS[@]}"
+
