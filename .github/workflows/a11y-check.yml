@@ -17,15 +17,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get changed files
-        id: changed-files
-        uses: tj-actions/changed-files@v44
+      - name: Scan notebooks for accessibility issues
+        uses: berkeley-dsep-infra/jupyterlab-a11y-checker@main
         with:
           files: "**/*.ipynb"
-
-      - name: Scan changed notebooks
-        if: steps.changed-files.outputs.any_changed == 'true'
-        uses: berkeley-dsep-infra/jupyterlab-a11y-checker@refactor
-        with:
-          files: ${{ steps.changed-files.outputs.all_changed_files }}
 
