@@ -12,63 +12,20 @@ jobs:
   a11y-check:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout current repo
-        uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Checkout repo with history
+        uses: actions/checkout@v4
         with:
-          node-version: '18'
+          fetch-depth: 0
 
-      - name: Resolve CLI commit
-        id: cli-ref
-        run: |
-          CLI_REF="refactor"
-          CLI_HASH=$(git ls-remote https://github.com/berkeley-dsep-infra/jupyterlab-a11y-checker refs/heads/$CLI_REF | cut -f1)
-          if [ -z "$CLI_HASH" ]; then
-            echo "Unable to resolve CLI ref '$CLI_REF'."
-            exit 1
-          fi
-          echo "cli_hash=$CLI_HASH" >> "$GITHUB_OUTPUT"
-
-      - name: Restore CLI cache
-        id: cli-cache
-        uses: actions/cache@v4
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v44
         with:
-          path: a11y-checker
-          key: cli-${{ runner.os }}-${{ steps.cli-ref.outputs.cli_hash }}
-          restore-keys: |
-            cli-${{ runner.os }}-
+          files: "**/*.ipynb"
 
-      - name: Checkout A11y Checker CLI
-        if: steps.cli-cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@v3
+      - name: Check changed notebooks
+        if: steps.changed-files.outputs.any_changed == 'true'
+        uses: berkeley-dsep-infra/jupyterlab-a11y-checker@main
         with:
-          repository: berkeley-dsep-infra/jupyterlab-a11y-checker
-          ref: refactor
-          path: a11y-checker
-
-      - name: Build CLI from source
-        if: steps.cli-cache.outputs.cache-hit != 'true'
-        working-directory: ./a11y-checker
-        run: |
-          npm install
-          npm run build -w packages/core
-          npm run build -w packages/cli
-
-      - name: Run accessibility check
-        run: |
-          set -euo pipefail
-          NOTEBOOKS=()
-          while IFS= read -r -d '' file; do
-            NOTEBOOKS+=("$file")
-          done < <(git ls-files '*.ipynb' -z)
-
-          if [ "${#NOTEBOOKS[@]}" -eq 0 ]; then
-            echo "No notebooks tracked in this repo."
-            exit 0
-          fi
-
-          echo "Running accessibility checks on ${#NOTEBOOKS[@]} notebooks."
-          node ./a11y-checker/packages/cli/dist/index.js "${NOTEBOOKS[@]}"
+          files: ${{ steps.changed-files.outputs.all_changed_files }}
 
