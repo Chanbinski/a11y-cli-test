@@ -23,7 +23,7 @@ jobs:
         with:
           files: "**/*.ipynb"
 
-      - name: Check changed notebooks
+      - name: Scan changed notebooks
         if: steps.changed-files.outputs.any_changed == 'true'
         uses: berkeley-dsep-infra/jupyterlab-a11y-checker@refactor
         with:
